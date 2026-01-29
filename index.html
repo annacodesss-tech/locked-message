@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Love Letter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            font-family: 'JetBrains+Mono', monospace;
+        }
+        .glitch-text {
+            text-shadow: 2px 0 #ff00ea, -2px 0 #00ffea;
+            animation: glitch 1s infinite;
+        }
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+        canvas {
+            touch-action: none;
+            display: block;
+        }
+        .letter-font {
+            font-family: 'Dancing Script', cursive;
+        }
+        .typewriter {
+            overflow: hidden;
+            border-right: .15em solid pink;
+            white-space: pre-wrap;
+            margin: 0 auto;
+            letter-spacing: .15em;
+            animation: blink-caret .75s step-end infinite;
+        }
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: #ec4899; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <!-- Screen 1: Access Denied / Locked -->
+    <div id="locked-screen" class="text-center p-8 bg-slate-900 border-2 border-pink-500 rounded-xl shadow-2xl z-10">
+        <h1 class="text-4xl font-bold mb-4 glitch-text text-pink-500">ACCESS DENIED</h1>
+        <p class="mb-6 opacity-80">File "SECRET_MESSAGE.love" is encrypted.</p>
+        <div class="p-4 bg-black rounded mb-6 text-green-400 text-sm">
+            > Awaiting love signal input...<br>
+            > Status: Locked
+        </div>
+        <button onclick="startMiniGame()" class="px-6 py-3 bg-pink-600 hover:bg-pink-500 transition-all rounded-full font-bold uppercase tracking-widest">
+            Decrypt Now
+        </button>
+    </div>
+
+    <!-- Screen 2: Mini-Game Love Catch -->
+    <div id="game-screen" class="hidden absolute inset-0 flex flex-col items-center justify-center">
+        <div id="game-ui" class="absolute top-10 text-xl font-bold text-pink-400 pointer-events-none">
+            Collect 10 heart fragments: <span id="score">0</span>/10
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <!-- Screen 3: The Letter -->
+    <div id="letter-screen" class="hidden max-w-lg w-full p-10 bg-white text-slate-900 rounded-sm shadow-[20px_20px_0px_rgba(236,72,153,0.3)] relative mx-4">
+        <div class="absolute -top-6 -right-6 text-6xl rotate-12 opacity-20">❤️</div>
+        <div class="letter-font text-3xl mb-6 text-pink-600">To my favorite person...</div>
+        <div id="letter-content" class="letter-font text-2xl leading-relaxed whitespace-pre-wrap"></div>
+        <div class="mt-8 text-right italic opacity-60">— Forever yours</div>
+    </div>
+
+    <script>
+        const lockedScreen = document.getElementById('locked-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const letterScreen = document.getElementById('letter-screen');
+        const letterContent = document.getElementById('letter-content');
+        const scoreDisplay = document.getElementById('score');
+        
+        // English version of the love letter
+        const MY_LOVE_LETTER = `You are my favorite bug in life, and one I never want to fix. 
+
+Every minute spent with you is the best user experience I could ever imagine. Thank you for being by my side, for your endless support, and for making my world so much brighter.
+
+I love you so much! Happy Valentine's Day! ❤️`;
+
+        // Game Variables
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let score = 0;
+        let gameActive = false;
+        let particles = [];
+
+        function startMiniGame() {
+            lockedScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            resizeCanvas();
+            gameActive = true;
+            animate();
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = -20;
+                this.size = Math.random() * 20 + 10;
+                this.speed = Math.random() * 3 + 2;
+                this.isHeart = Math.random() > 0.2; // 80% hearts, 20% clouds
+            }
+            update() {
+                this.y += this.speed;
+                if (this.y > canvas.height) this.reset();
+            }
+            draw() {
+                ctx.font = `${this.size}px serif`;
+                ctx.fillText(this.isHeart ? '❤️' : '☁️', this.x, this.y);
+            }
+        }
+
+        // Mouse/Touch Interaction
+        const handleInteraction = (ex, ey) => {
+            if (!gameActive) return;
+            particles.forEach((p, index) => {
+                const dist = Math.hypot(p.x - ex, p.y - ey);
+                if (dist < 40) {
+                    if (p.isHeart) {
+                        score++;
+                        scoreDisplay.innerText = score;
+                        particles.splice(index, 1);
+                        particles.push(new Particle());
+                        if (score >= 10) winGame();
+                    } else {
+                        score = Math.max(0, score - 1);
+                        scoreDisplay.innerText = score;
+                        p.reset();
+                    }
+                }
+            });
+        };
+
+        canvas.addEventListener('mousedown', (e) => handleInteraction(e.clientX, e.clientY));
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
+        function animate() {
+            if (!gameActive) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (particles.length < 15) particles.push(new Particle());
+            
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        function winGame() {
+            gameActive = false;
+            gameScreen.classList.add('hidden');
+            letterScreen.classList.remove('hidden');
+            showLetter();
+        }
+
+        function showLetter() {
+            let i = 0;
+            function type() {
+                if (i < MY_LOVE_LETTER.length) {
+                    letterContent.innerHTML += MY_LOVE_LETTER.charAt(i);
+                    i++;
+                    setTimeout(type, 50);
+                }
+            }
+            type();
+        }
+    </script>
+</body>
+</html>
